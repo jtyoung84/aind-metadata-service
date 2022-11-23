@@ -1,10 +1,10 @@
-name: Bump version
+name: Tag and publish
 on:
   push:
     branches:
       - main
 jobs:
-  build:
+  tag:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -20,6 +20,17 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           custom_tag: ${{ steps.getversion.outputs.version }}
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Extract version from file
+        id: getversion
+        run: |
+          pkg_name=$(grep -P 'version = \{attr = .*\}' pyproject.toml | grep -oP '\w+.__version__')
+          init_file="./src/${pkg_name//.__version__}/__init__.py"
+          new_tag=$(grep -Po '__version__ = "\K.*?(?=")' $init_file)
+          echo "::set-output name=version::$new_tag"
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
@@ -34,6 +45,7 @@ jobs:
         with:
           # relative path to the place where source code with Dockerfile is located
           context: .
+          push: true
           tags: |
             ghcr.io/jtyoung84/aind-metadata-service-test:${{ steps.getversion.outputs.version }}
             ghcr.io/jtyoung84/aind-metadata-service-test:latest
