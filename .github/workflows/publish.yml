@@ -49,3 +49,4 @@ jobs:
           tags: |
             ghcr.io/jtyoung84/aind-metadata-service-test:${{ steps.getversion.outputs.version }}
             ghcr.io/jtyoung84/aind-metadata-service-test:latest
+
