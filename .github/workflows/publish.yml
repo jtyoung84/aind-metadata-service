@@ -4,8 +4,10 @@ on:
     branches:
       - main
 jobs:
-  tag:
+  extract_version:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.getversion.outputs.version }}
     steps:
       - uses: actions/checkout@v2
       - name: Extract version from file
@@ -15,22 +17,21 @@ jobs:
           init_file="./src/${pkg_name//.__version__}/__init__.py"
           new_tag=$(grep -Po '__version__ = "\K.*?(?=")' $init_file)
           echo "version=$new_tag" >> $GITHUB_OUTPUT
+  tag:
+    runs-on: ubuntu-latest
+    needs: extract_version
+    steps:
+      - uses: actions/checkout@v2
       - name: Bump tag
         uses: mathieudutour/github-tag-action@v6.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          custom_tag: ${{ steps.getversion.outputs.version }}
+          custom_tag: ${{ needs.extract_version.outputs.version }}
   publish:
     runs-on: ubuntu-latest
+    needs: extract_version
     steps:
       - uses: actions/checkout@v2
-      - name: Extract version from file
-        id: getversion
-        run: |
-          pkg_name=$(grep -P 'version = \{attr = .*\}' pyproject.toml | grep -oP '\w+.__version__')
-          init_file="./src/${pkg_name//.__version__}/__init__.py"
-          new_tag=$(grep -Po '__version__ = "\K.*?(?=")' $init_file)
-          echo "version=$new_tag" >> $GITHUB_OUTPUT
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v2
@@ -47,6 +48,6 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/jtyoung84/aind-metadata-service-test:${{ steps.getversion.outputs.version }}
+            ghcr.io/jtyoung84/aind-metadata-service-test:${{ needs.extract_version.outputs.version }}
             ghcr.io/jtyoung84/aind-metadata-service-test:latest
 
